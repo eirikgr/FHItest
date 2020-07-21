@@ -72,10 +72,16 @@ vb = 0
 
 df = pd.read_csv('/input/individual_level_data.csv')
 
+#info['nump'] = info.apply(lambda row: (int(row.value.split()[0])), axis = 1)
+
+#sys.exit()
+
 un_dates = df['date'].unique()
+#for i in range(2033,2055):
+#un_dates = un_dates[0:2033]#drop(df.index[i])
 un_locat = df['location_code'].unique()
 
-full_day  = pd.DataFrame(columns=["location_code","location_name","date","num_sick","num_population","county_code","isoyearweek"])
+#full_day  = pd.DataFrame(columns=["location_code","location_name","date","num_sick","num_population","county_code","isoyearweek"])
 full_week = pd.DataFrame(columns=["location_code","location_name","isoyearweek","num_sick","num_population"])
 
 nentry = 0
@@ -98,61 +104,96 @@ for locat in un_locat:
 
     # make dummy data frame for further manipulation
     dummy = df.loc[df['location_code'] == locat]
+    count = dummy.groupby('date',as_index=False).agg(['count'])
+    dummy.drop_duplicates('date',inplace=True)
+    dummy.reset_index(inplace=True)
+    un_dates = list(dummy['date'])
+    dummy['num_sick'] = pd.Series(list(count["value"]["count"]),index=dummy.index)
+    dummy['location_name'] = pd.Series(munip_name,index=dummy.index)
+    dummy['county_code'] = pd.Series(county_code,index=dummy.index)
+    dummy['num_population'] = dummy.apply(lambda row: (munip_info[int(datetime.datetime.strptime(row.date,'%Y-%m-%d').year)]), axis = 1)
+    dummy['isoyearweek'] = dummy.apply(lambda row: ("%s-%02d"%(datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[0],datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[1])), axis = 1)
 
+    dummy.drop("value",axis=1)
+    dummy.drop("index",axis=1)
+    
+    
+    try:
+        full_day = pd.concat([full_day,dummy],axis=0)
+    except:
+        full_day = dummy
+        
+
+
+    
     # loop over unique days in data range
     nlocat += 1
     ndate = 0
-    for date in un_dates:
 
-        if ndate%100 == 0: print("Doing date %i/%i" %(ndate,len(un_dates)))
+    #sys.exit()
+    
+    # for date in un_dates:
+
+    #     if ndate%100 == 0: print("Doing date %i/%i" %(ndate,len(un_dates)))
         
-        # get year
-        dt = datetime.datetime.strptime(date, '%Y-%m-%d')
-        yr = int(dt.year)
+    #     # get year
+    #     dt = datetime.datetime.strptime(date, '%Y-%m-%d')
+    #     yr = int(dt.year)
 
-        if not yr in munip_info.keys():
-            print("Could not find population from %i for %s" %(yr,munip_name))
-            continue
+    #     if not yr in munip_info.keys():
+    #         print("Could not find population from %i for %s" %(yr,munip_name))
+    #         continue
 
-        # extract information
-        pop   = munip_info[yr]
-        nsick = dummy[dummy['date'] == date].shape[0]
+    #     # extract information
+    #     pop   = munip_info[yr]
+    #     nsick = dummy[dummy['date'] == date].shape[0]
         
-        if vb: print("Sick people in municipality %s on date %s is %i" %(locat,date,nsick))
+    #     if vb: print("Sick people in municipality %s on date %s is %i" %(locat,date,nsick))
 
-        isoyearweek = "%s-%02d" %(dt.isocalendar()[0],dt.isocalendar()[1])
+    #     isoyearweek = "%s-%02d" %(dt.isocalendar()[0],dt.isocalendar()[1])
         
-        full_day.loc[nentry] = pd.Series({'location_code':locat, 'location_name':munip_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
-        nentry += 1
+    #     full_day.loc[nentry] = pd.Series({'location_code':locat, 'location_name':munip_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
+    #     nentry += 1
 
-        try:
-            full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_sick'] += nsick
-            full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_population'] += pop
-        except:
-            full_day.loc[nentry] = pd.Series({'location_code':county_code, 'location_name':county_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
-            nentry += 1
+    #     try:
+    #         full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_sick'] += nsick
+    #         full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_population'] += pop
+    #     except:
+    #         full_day.loc[nentry] = pd.Series({'location_code':county_code, 'location_name':county_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
+    #         nentry += 1
             
-        try:
-            full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_sick'] += nsick
-            full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_population'] += pop
-        except:
-            full_day.loc[nentry] = pd.Series({'location_code':"norge", 'location_name':"Norge", 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':'norge', 'isoyearweek':isoyearweek})
-            nentry += 1
+    #     try:
+    #         full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_sick'] += nsick
+    #         full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_population'] += pop
+    #     except:
+    #         full_day.loc[nentry] = pd.Series({'location_code':"norge", 'location_name':"Norge", 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':'norge', 'isoyearweek':isoyearweek})
+    #         nentry += 1
             
-        ndate += 1
-        #if ndate > 10: break
-        #break
+    #     ndate += 1
+    #     if ndate > 10: break
+    #     #break
         
     un_isoyw = full_day['isoyearweek'].unique()
     for isoyw in un_isoyw:
         nsick = full_day.loc[(full_day.isoyearweek == isoyw) & (full_day.location_code == locat)]["num_sick"].sum()
-        full_week.loc[nentry2] = pd.Series({'location_code':locat,"location_name":munip_name,"isoyearweek":isoyw,"num_sick":nsick,"num_population":pop})
+        full_week.loc[nentry2] = pd.Series({'location_code':locat,"location_name":munip_name,"isoyearweek":isoyw,"num_sick":nsick,"num_population":munip_info[int(isoyw.split("-")[0])]})
         nentry2 += 1
-    #if nlocat > 5: break
+    #if nlocat > 3: break
 
-    
 
-full_day.to_excel("/output/full_day.xlsx",columns=["location_code","location_name","date","num_sick","num_population"])
+
+
+full_day.drop("index",axis=1)
+full_day.drop("value",axis=1)
+
+dummy = pd.DataFrame(data = {'date': pd.Series(list(un_dates))})
+dummy['num_sick'] = pd.Series(list(full_day.groupby('date',as_index=False).agg(['sum'])["num_sick"]["sum"]))
+dummy['location_name'] = pd.Series("Norge",index=dummy.index)
+dummy['location_code'] = pd.Series("norge",index=dummy.index)
+dummy['county_code'] = pd.Series("norge",index=dummy.index)
+dummy['num_population'] = pd.Series(list(full_day.groupby('date',as_index=False).agg(['sum'])["num_population"]["sum"]))
+dummy['isoyearweek'] = dummy.apply(lambda row: ("%s-%02d"%(datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[0],datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[1])), axis = 1)
+full_day = pd.concat([full_day,dummy],axis=0)
 
 # Filling inoformation about norway
 #for isoyw in un_isoyw:
@@ -161,8 +202,9 @@ full_day.to_excel("/output/full_day.xlsx",columns=["location_code","location_nam
 #    full_week.loc[nentry2] = pd.Series({'location_code':"norge","location_name":"Norge","isoyearweek":isoyw,"num_sick":nsick,"num_population":pop})
 #    nentry2 += 1
 
-un_countyc = full_day['county_code'].unique()
+#un_countyc = full_day['county_code'].unique()
 #un_countyc = [3, 11, 15, 18, 30, 34, 38, 42, 46, 50, 54, 99]
+un_countyc = full_day['county_code'].unique()
 for countycode in un_countyc:
     if type(countycode) == int:
         countyc = 'county%02d' %countycode
@@ -176,6 +218,16 @@ for countycode in un_countyc:
         county_name = county_name.split("-")[0]
     else:
         county_name = "Norge"
+
+    dummy = pd.DataFrame(data = {'date': pd.Series(list(un_dates))})
+    dummy['num_sick'] = pd.Series(list(full_day.loc[(full_day.county_code == countyc)].groupby('date',as_index=False).agg(['sum'])["num_sick"]["sum"]))
+    dummy['location_name'] = pd.Series(county_name,index=dummy.index)
+    dummy['location_code'] = pd.Series(countyc,index=dummy.index)
+    dummy['county_code'] = pd.Series(countyc,index=dummy.index)
+    dummy['num_population'] = pd.Series(list(full_day.loc[(full_day.county_code == countyc)].groupby('date',as_index=False).agg(['sum'])["num_population"]["sum"]))
+    dummy['isoyearweek'] = dummy.apply(lambda row: ("%s-%02d"%(datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[0],datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[1])), axis = 1)
+    full_day = pd.concat([full_day,dummy],axis=0)
+    
     fname = '/output/%s' %county_name
 
     # filling information about counties
@@ -184,9 +236,7 @@ for countycode in un_countyc:
         pop   = full_day.loc[(full_day.isoyearweek == isoyw) & (full_day.location_code == countyc)]["num_population"].iloc[0]
         full_week.loc[nentry2] = pd.Series({'location_code':countyc,"location_name":county_name,"isoyearweek":isoyw,"num_sick":nsick,"num_population":pop})
         nentry2 += 1
-    # done with full_week, writing to file
-    full_week.to_excel("/output/full_week.xlsx",columns=["location_code","location_name","isoyearweek","num_sick","num_population"])
-
+    
     createDir(fname)
     
     if county_name == "Norge":
@@ -206,7 +256,7 @@ for countycode in un_countyc:
     createDir(fname+"/_county")
 
     full_day.loc[(full_day.location_code == countyc)].to_excel("%s/_county/full_day.xlsx"%fname,columns=["location_code","location_name","date","num_sick","num_population"])
-    full_week.loc[(full_day.location_code == countyc)].to_excel("%s/_county/full_week.xlsx"%fname,columns=["location_code","location_name","isoyearweek","num_sick","num_population"])
+    full_week.loc[(full_week.location_code == countyc)].to_excel("%s/_county/full_week.xlsx"%fname,columns=["location_code","location_name","isoyearweek","num_sick","num_population"])
 
     # Do the plotting
     ax = full_day[(full_day.location_code == countyc)].plot(y="num_sick",x="date",kind="line",grid=True,
@@ -235,3 +285,7 @@ for countycode in un_countyc:
         #fig = plt.figure()
         plt.savefig("%s/graph.png"%(newfname))
 #full_day.to_excel("full_day.xlsx",columns=["location_code","location_name","date","num_sick","num_population"])
+
+full_day.to_excel("/output/full_day.xlsx",columns=["location_code","location_name","date","num_sick","num_population"])
+# done with full_week, writing to file
+full_week.to_excel("/output/full_week.xlsx",columns=["location_code","location_name","isoyearweek","num_sick","num_population"])

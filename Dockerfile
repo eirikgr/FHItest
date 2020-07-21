@@ -19,4 +19,6 @@ COPY doANA.py .
 COPY 26975.csv .
 COPY county.csv .
 
+ENV PYTHONUNBUFFERED=0
+
 CMD ["python", "doANA.py"]
