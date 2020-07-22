@@ -8,6 +8,7 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import datetime
 
+
 # Population in municiplaities in norway since 1986
 info = pd.read_csv('./26975.csv')
 # Codes for the counties in Norway
@@ -76,10 +77,19 @@ df = pd.read_csv('/input/individual_level_data.csv')
 
 #sys.exit()
 
-un_dates = df['date'].unique()
+#un_dates = df['date'].unique()
 #for i in range(2033,2055):
 #un_dates = un_dates[0:2033]#drop(df.index[i])
+sdate = datetime.date(2015,1,1)   # start date
+edate = datetime.date(2020,12,31)   # end date
+delta = edate - sdate       # as timedelta
+un_dates = []
+for i in range(delta.days + 1):
+    day = sdate + datetime.timedelta(days=i)
+    un_dates.append(day)
+
 un_locat = df['location_code'].unique()
+
 
 #full_day  = pd.DataFrame(columns=["location_code","location_name","date","num_sick","num_population","county_code","isoyearweek"])
 full_week = pd.DataFrame(columns=["location_code","location_name","isoyearweek","num_sick","num_population"])
@@ -103,7 +113,7 @@ for locat in un_locat:
     munip_info = get_population(locat)
 
     # make dummy data frame for further manipulation
-    dummy = df.loc[df['location_code'] == locat]
+    dummy = df.loc[df['location_code'] == locat].copy()
     count = dummy.groupby('date',as_index=False).agg(['count'])
     dummy.drop_duplicates('date',inplace=True)
     dummy.reset_index(inplace=True)
@@ -129,59 +139,13 @@ for locat in un_locat:
     # loop over unique days in data range
     nlocat += 1
     ndate = 0
-
-    #sys.exit()
     
-    # for date in un_dates:
-
-    #     if ndate%100 == 0: print("Doing date %i/%i" %(ndate,len(un_dates)))
-        
-    #     # get year
-    #     dt = datetime.datetime.strptime(date, '%Y-%m-%d')
-    #     yr = int(dt.year)
-
-    #     if not yr in munip_info.keys():
-    #         print("Could not find population from %i for %s" %(yr,munip_name))
-    #         continue
-
-    #     # extract information
-    #     pop   = munip_info[yr]
-    #     nsick = dummy[dummy['date'] == date].shape[0]
-        
-    #     if vb: print("Sick people in municipality %s on date %s is %i" %(locat,date,nsick))
-
-    #     isoyearweek = "%s-%02d" %(dt.isocalendar()[0],dt.isocalendar()[1])
-        
-    #     full_day.loc[nentry] = pd.Series({'location_code':locat, 'location_name':munip_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
-    #     nentry += 1
-
-    #     try:
-    #         full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_sick'] += nsick
-    #         full_day.at[full_day.loc[(full_day.location_code == county_code) & (full_day.date == date)].index[0],'num_population'] += pop
-    #     except:
-    #         full_day.loc[nentry] = pd.Series({'location_code':county_code, 'location_name':county_name, 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':county_code, 'isoyearweek':isoyearweek})
-    #         nentry += 1
-            
-    #     try:
-    #         full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_sick'] += nsick
-    #         full_day.at[full_day.loc[(full_day.location_code == "norge") & (full_day.date == date)].index[0],'num_population'] += pop
-    #     except:
-    #         full_day.loc[nentry] = pd.Series({'location_code':"norge", 'location_name':"Norge", 'date':date, 'num_sick':nsick, 'num_population':pop, 'county_code':'norge', 'isoyearweek':isoyearweek})
-    #         nentry += 1
-            
-    #     ndate += 1
-    #     if ndate > 10: break
-    #     #break
-        
     un_isoyw = full_day['isoyearweek'].unique()
     for isoyw in un_isoyw:
         nsick = full_day.loc[(full_day.isoyearweek == isoyw) & (full_day.location_code == locat)]["num_sick"].sum()
         full_week.loc[nentry2] = pd.Series({'location_code':locat,"location_name":munip_name,"isoyearweek":isoyw,"num_sick":nsick,"num_population":munip_info[int(isoyw.split("-")[0])]})
         nentry2 += 1
     #if nlocat > 3: break
-
-
-
 
 full_day.drop("index",axis=1)
 full_day.drop("value",axis=1)
@@ -190,10 +154,10 @@ dummy = pd.DataFrame(data = {'date': pd.Series(list(un_dates))})
 dummy['num_sick'] = pd.Series(list(full_day.groupby('date',as_index=False).agg(['sum'])["num_sick"]["sum"]))
 dummy['location_name'] = pd.Series("Norge",index=dummy.index)
 dummy['location_code'] = pd.Series("norge",index=dummy.index)
-dummy['county_code'] = pd.Series("norge",index=dummy.index)
+dummy['county_code'] = pd.Series("-",index=dummy.index)
 dummy['num_population'] = pd.Series(list(full_day.groupby('date',as_index=False).agg(['sum'])["num_population"]["sum"]))
 dummy['isoyearweek'] = dummy.apply(lambda row: ("%s-%02d"%(datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[0],datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[1])), axis = 1)
-full_day = pd.concat([full_day,dummy],axis=0)
+full_day = pd.concat([full_day,dummy],axis=0,sort=False)
 
 # Filling inoformation about norway
 #for isoyw in un_isoyw:
@@ -206,11 +170,14 @@ full_day = pd.concat([full_day,dummy],axis=0)
 #un_countyc = [3, 11, 15, 18, 30, 34, 38, 42, 46, 50, 54, 99]
 un_countyc = full_day['county_code'].unique()
 for countycode in un_countyc:
+    
     if type(countycode) == int:
         countyc = 'county%02d' %countycode
     else: countyc = countycode
     
-    if not countyc: continue
+    if not countyc or countyc=="-": continue
+
+    print "Plotting/saving for %s" %(countycode)
     
     if not "norge" in countyc:
         munip_id, county_id = get_munip_county(countyc)
@@ -223,10 +190,10 @@ for countycode in un_countyc:
     dummy['num_sick'] = pd.Series(list(full_day.loc[(full_day.county_code == countyc)].groupby('date',as_index=False).agg(['sum'])["num_sick"]["sum"]))
     dummy['location_name'] = pd.Series(county_name,index=dummy.index)
     dummy['location_code'] = pd.Series(countyc,index=dummy.index)
-    dummy['county_code'] = pd.Series(countyc,index=dummy.index)
+    dummy['county_code'] = pd.Series("-",index=dummy.index)
     dummy['num_population'] = pd.Series(list(full_day.loc[(full_day.county_code == countyc)].groupby('date',as_index=False).agg(['sum'])["num_population"]["sum"]))
     dummy['isoyearweek'] = dummy.apply(lambda row: ("%s-%02d"%(datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[0],datetime.datetime.strptime(row.date,'%Y-%m-%d').isocalendar()[1])), axis = 1)
-    full_day = pd.concat([full_day,dummy],axis=0)
+    full_day = pd.concat([full_day,dummy],axis=0,sort=False)
     
     fname = '/output/%s' %county_name
 
@@ -250,7 +217,7 @@ for countycode in un_countyc:
         ax.set_ylabel("Number of sick persons")
         #fig = plt.figure()
         plt.savefig("%s/graph.png"%(fname))
-        
+        plt.clf()
         continue
     
     createDir(fname+"/_county")
@@ -265,7 +232,7 @@ for countycode in un_countyc:
     ax.set_ylabel("Number of sick persons")
     #fig = plt.figure()
     plt.savefig("%s/_county/graph.png"%(fname))
-    
+    plt.clf()    
     for munip_code, munip in zip(full_day.loc[(full_day.county_code == countyc)]["location_code"].unique(),full_day.loc[(full_day.county_code == countyc)]["location_name"].unique()):
 
         newfname = "%s/%s"%(fname,munip)
@@ -284,6 +251,7 @@ for countycode in un_countyc:
         ax.set_ylabel("Number of sick persons")
         #fig = plt.figure()
         plt.savefig("%s/graph.png"%(newfname))
+        plt.clf()
 #full_day.to_excel("full_day.xlsx",columns=["location_code","location_name","date","num_sick","num_population"])
 
 full_day.to_excel("/output/full_day.xlsx",columns=["location_code","location_name","date","num_sick","num_population"])
